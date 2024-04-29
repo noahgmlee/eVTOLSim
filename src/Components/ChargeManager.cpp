@@ -8,6 +8,7 @@ ChargeManager::ChargeManager()
 
 void ChargeManager::update(TimeS dt)
 {
+    //add any chargers back to availableChargers queue when an aircraft is done charging
     for (int i = 0; i < NUM_CHARGERS; i++)
     {
         if (shMemPtr->chargingNetwork.chargers[i].inUse)
@@ -20,6 +21,8 @@ void ChargeManager::update(TimeS dt)
             }
         }
     }
+
+    //add any aircrafts at front of queue to available chargers
     while (!shMemPtr->chargingNetwork.chargeQueue.empty() &&
            !shMemPtr->chargingNetwork.availableChargers.empty())
     {

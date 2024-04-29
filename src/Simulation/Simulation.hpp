@@ -6,8 +6,8 @@ class Simulation
 {
 public:
     Simulation(TimeS dt, TimeS duration);
-    void addObject(SimObj* component);
-    void addCallable(std::function<void(TimeS)> callable, SIM_BATCH batch);
+    void addObject(SimObj* component); //attach Functor as std::function
+    void addCallable(std::function<void(TimeS)> callable, SIM_BATCH batch); //attach std::function
     void start();
     void update(TimeS dt);
 

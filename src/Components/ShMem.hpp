@@ -54,6 +54,8 @@ struct charger
 
 struct chargerNetwork
 {
+    //aircrafts are assigned to chargers based on wait time priority (max wait time = high priority)
+    //a FIFO queue offers O(1) push and pop functions which are the only necessary interactions
     std::queue<int> availableChargers;
     std::queue<int> chargeQueue;
     charger chargers[NUM_CHARGERS];

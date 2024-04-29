@@ -35,10 +35,10 @@ $(BIN_DIR):
 	mkdir $@
 
 runsim:
-	./bin/eVTOLsim
+	./bin/eVTOLsim > outputs/sim_output.txt
 
 runtests:
-	./bin/tests
+	./bin/tests > outputs/test_output.txt
 
 clean:
 	rm -rf $(BIN_DIR)

@@ -1,6 +1,19 @@
 #include <iostream>
 #include "eVTOL.hpp"
 
+//empty constructor for implicit initialization
+eVTOL::eVTOL()
+{
+    characteristics.clear();
+    runningData.clear();
+    inQueue = false;
+    timeCharging = 0;
+    distanceFlying = 0.0;
+    timeFlying = 0;
+    shMemPtr = nullptr;
+}
+
+//scalability consideration to add more variance to eVTOL types
 eVTOL::eVTOL(eVTOL_consts& eVTOL_data)
 {
     characteristics.cruiseSpeed_mph = eVTOL_data.cruiseSpeed_mph;
@@ -15,11 +28,12 @@ eVTOL::eVTOL(eVTOL_consts& eVTOL_data)
     runningData.batteryCapacity_kwh = eVTOL_data.maxBatteryCapacity_kwh;
     inQueue = false;
     timeCharging = 0;
-    distanceFlying = 0;
+    distanceFlying = 0.0;
     timeFlying = 0;
     shMemPtr = &sharedMemory;
 }
 
+//abstraction of eVTOL characteristics in setup allows just an enum to determine aircraft type
 eVTOL::eVTOL(EVTOL_TYPE type, int id)
 {
     //TODO don't use literals define constants such as ALPHA_SPEED, ALPHA_BATTCAPACITY etc.
@@ -55,7 +69,7 @@ eVTOL::eVTOL(EVTOL_TYPE type, int id)
     runningData.batteryCapacity_kwh = characteristics.maxBatteryCapacity_kwh;
     inQueue = false;
     timeCharging = 0;
-    distanceFlying = 0;
+    distanceFlying = 0.0;
     timeFlying = 0;
     shMemPtr = &sharedMemory;
 }
@@ -85,16 +99,19 @@ void eVTOL::updateStateMachine(TimeS dt)
 
 void eVTOL::updateBattery(TimeS dt)
 {
+    //power consumption = kwh/mile * miles flown
     float distance = characteristics.cruiseSpeed_mph * SEC_TO_HRS(dt); //in miles
     runningData.batteryCapacity_kwh -= distance * characteristics.energyAtCruise_kwhpm;
     distanceFlying += distance;
     timeFlying += dt;
+    //only update logging data when a flight completes (battery is 0%)
     if (runningData.batteryCapacity_kwh < 0.0)
     {
         runningData.totalDistance += distanceFlying;
+        runningData.passengerMiles += distanceFlying * (float)characteristics.passengerCount;
         runningData.flightTime += timeFlying;
         runningData.numFlights += 1;
-        distanceFlying = 0;
+        distanceFlying = 0.0;
         timeFlying = 0;
         runningData.batteryCapacity_kwh = 0.0;
         runningData.state = EVTOL_STATE::GROUNDED_WAITING;
@@ -103,6 +120,8 @@ void eVTOL::updateBattery(TimeS dt)
 
 void eVTOL::updateBatteryCharging(TimeS dt)
 {
+    //convert chargeTime to a delta power charged with respect to dt
+    //rate = 1/timeToCharge * hours * battery_capacity_constant
     float ratekwhdt = SEC_TO_HRS(dt) * 1.0/characteristics.chargeTime_hs * characteristics.maxBatteryCapacity_kwh; //in miles
     runningData.batteryCapacity_kwh += ratekwhdt;
     timeCharging += dt;
@@ -119,14 +138,14 @@ void eVTOL::updateBatteryCharging(TimeS dt)
 
 void eVTOL::updateChargeQueue()
 {
-    if (!inQueue)
+    if (!inQueue) //queue an eVTOL for charge once landed
     {
         shMemPtr->chargingNetwork.chargeQueue.push(characteristics.id);
         inQueue = true;
     }
     else
     {
-        if (shMemPtr->messages[characteristics.id].charging)
+        if (shMemPtr->messages[characteristics.id].charging) //transition to charging when chargeManager indicates
         {
             runningData.state = EVTOL_STATE::GROUNDED_CHARGING;
             inQueue = false;
@@ -134,12 +153,12 @@ void eVTOL::updateChargeQueue()
     }
 }
 
-void eVTOL::updateLogging()
+void eVTOL::updateLogging() //write stats to sharedMemory for Logger
 {
     shMemPtr->messages[characteristics.id].numFaults = runningData.numFaults;
     shMemPtr->messages[characteristics.id].numFlights = runningData.numFlights;
     shMemPtr->messages[characteristics.id].numChargeSessions = runningData.numChargeSessions;
-    shMemPtr->messages[characteristics.id].passengerMiles = runningData.totalDistance * characteristics.passengerCount;
+    shMemPtr->messages[characteristics.id].passengerMiles = runningData.passengerMiles;
     shMemPtr->messages[characteristics.id].distance = runningData.totalDistance;
     shMemPtr->messages[characteristics.id].flightTime = runningData.flightTime;
     shMemPtr->messages[characteristics.id].chgTime = runningData.chgTime;

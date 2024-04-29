@@ -4,6 +4,7 @@
 #include "SimTypes.hpp"
 #include <iostream>
 
+//base functor that Simulation API accepts
 class SimObj
 {
 public:

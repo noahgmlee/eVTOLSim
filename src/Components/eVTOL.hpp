@@ -3,6 +3,7 @@
 #include "ShMem.hpp"
 #include "Logger.hpp"
 
+//struct of characteristic data to an eVTOL type
 struct eVTOL_consts
 {
     float cruiseSpeed_mph;
@@ -13,6 +14,18 @@ struct eVTOL_consts
     float faultThresh;
     EVTOL_TYPE type;
     int id;
+
+    void clear()
+    {
+        cruiseSpeed_mph = 0.0;
+        maxBatteryCapacity_kwh = 0.0;
+        chargeTime_hs = 0.0;
+        energyAtCruise_kwhpm = 0.0;
+        passengerCount = 0;
+        faultThresh = 0.0;
+        type = EVTOL_TYPE(0);
+        id = 0;
+    }
 };
 
 //TODO as plane types evolve making eVTOL a base class would make sense
@@ -22,8 +35,11 @@ struct eVTOL_consts
 class eVTOL : public SimObj
 {
 public:
+    eVTOL();
     eVTOL(eVTOL_consts& eVTOL_data);
     eVTOL(EVTOL_TYPE type, int id);
+
+//SimObj overrides
     void operator()(TimeS dt){
         update(dt);
     }

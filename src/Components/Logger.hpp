@@ -13,6 +13,7 @@ struct eVTOL_logging
     int numFlights;
     int numChargeSessions;
     float totalDistance;
+    float passengerMiles;
     TimeS flightTime;
     TimeS chgTime;
     EVTOL_STATE state;
@@ -21,7 +22,8 @@ struct eVTOL_logging
         numFaults = 0;
         numFlights = 0;
         numChargeSessions = 0;
-        totalDistance = 0;
+        totalDistance = 0.0;
+        passengerMiles = 0.0;
         flightTime = 0;
         chgTime = 0;
         state = EVTOL_STATE::CRUISING;
@@ -41,7 +43,7 @@ public:
 private:
     TimeS simTime_s;
     eVTOL_logging perAircraftData[5];
-    std::ofstream perAircraftFile[5];
+    std::ofstream perAircraftFile[5]; //logFile per aircraft type
     ShMem* shMemPtr;
 };
 

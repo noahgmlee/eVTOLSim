@@ -7,7 +7,7 @@ Simulation::Simulation(TimeS dt, TimeS duration) : dt(dt), duration(duration)
 
 void Simulation::addObject(SimObj* component)
 {
-    //ensure polymorphism is not lost through a hard copy
+    //ensure polymorphism is not lost through a hard copy in std::function construction
     addCallable(std::ref(*component), component->batch);
 }
 
@@ -17,7 +17,7 @@ void Simulation::addCallable(std::function<void(TimeS)> callable, SIM_BATCH batc
     {
         batch1.push_back(callable);
     }
-    else if (batch == SIM_BATCH::BATCH2) //being explicit
+    else if (batch == SIM_BATCH::BATCH2)
     {
         batch2.push_back(callable);
     }
