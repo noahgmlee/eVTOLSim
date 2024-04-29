@@ -3,6 +3,7 @@
 #include "SimTypes.hpp"
 #include "eVTOL.hpp"
 #include "ChargeManager.hpp"
+#include "Simulation.hpp"
 
 //TODO add testhelpers header and implementation to abstract helpful test sequences
 
@@ -116,7 +117,64 @@ TEST(CHARGEMANAGER, chargeQueue)
     EXPECT_TRUE(echo.getState() == EVTOL_STATE::GROUNDED_CHARGING);
 }
 
-TEST(INTEGRATION, SimEngine)
+TEST(INTEGRATION, SimEngineSimple)
+{
+    Simulation simEngine = Simulation(60, 60 * 10); //run 10 ticks
+    int i1 = 0, i2 = 0, i3 = 0;
+    std::function<void(TimeS)> lambda1 = [&i1](TimeS dt) { std::cout << i1 << ": I am lambda 1, batch1!" << std::endl; i1++; };
+    std::function<void(TimeS)> lambda2 = [&i2](TimeS dt) { std::cout << i2 << ": I am lambda 2, batch2!" << std::endl; i2++; };
+    std::function<void(TimeS)> lambda3 = [&i3](TimeS dt) { std::cout << i3 << ": I am lambda 3, batch1!" << std::endl; i3++; };
+    simEngine.addCallable(lambda1, SIM_BATCH::BATCH1);
+    simEngine.addCallable(lambda2, SIM_BATCH::BATCH2);
+    simEngine.addCallable(lambda3, SIM_BATCH::BATCH1);
+    simEngine.start();
+}
+
+TEST(INTEGRATION, SimEngineEVTOL)
+{
+    sharedMemory.init();
+    TimeS dt = 60;
+    Simulation simEngine = Simulation(60, 60 * 10); //run 10 ticks
+    eVTOL alpha = eVTOL(EVTOL_TYPE::ALPHA, 0);
+    eVTOL bravo = eVTOL(EVTOL_TYPE::BRAVO, 1);
+    eVTOL charlie = eVTOL(EVTOL_TYPE::CHARLIE, 2);
+    eVTOL delta = eVTOL(EVTOL_TYPE::DELTA, 3);
+    eVTOL echo = eVTOL(EVTOL_TYPE::ECHO, 4);
+    ChargeManager chargeMngr = ChargeManager();
+    simEngine.addObject(&alpha);
+    simEngine.addObject(&bravo);
+    simEngine.addObject(&charlie);
+    simEngine.addObject(&delta);
+    simEngine.addObject(&echo);
+    simEngine.addObject(&chargeMngr);
+    simEngine.update(dt);
+    EXPECT_TRUE(alpha.getState() == EVTOL_STATE::CRUISING);
+    EXPECT_TRUE(bravo.getState() == EVTOL_STATE::CRUISING);
+    EXPECT_TRUE(charlie.getState() == EVTOL_STATE::CRUISING);
+    EXPECT_TRUE(delta.getState() == EVTOL_STATE::CRUISING);
+    EXPECT_TRUE(echo.getState() == EVTOL_STATE::CRUISING);
+    alpha.setState(EVTOL_STATE::GROUNDED_WAITING);
+    bravo.setState(EVTOL_STATE::GROUNDED_WAITING);
+    charlie.setState(EVTOL_STATE::GROUNDED_WAITING);
+    delta.setState(EVTOL_STATE::GROUNDED_WAITING);
+    echo.setState(EVTOL_STATE::GROUNDED_WAITING);
+    simEngine.update(dt);
+    simEngine.update(dt);
+    EXPECT_TRUE(alpha.getState() == EVTOL_STATE::GROUNDED_CHARGING);
+    EXPECT_TRUE(bravo.getState() == EVTOL_STATE::GROUNDED_CHARGING);
+    EXPECT_TRUE(charlie.getState() == EVTOL_STATE::GROUNDED_CHARGING);
+    EXPECT_TRUE(delta.getState() == EVTOL_STATE::GROUNDED_WAITING);
+    EXPECT_TRUE(echo.getState() == EVTOL_STATE::GROUNDED_WAITING);
+    simEngine.update(dt);
+    simEngine.update(dt);
+    EXPECT_TRUE(alpha.getState() == EVTOL_STATE::CRUISING);
+    EXPECT_TRUE(bravo.getState() == EVTOL_STATE::CRUISING);
+    EXPECT_TRUE(charlie.getState() == EVTOL_STATE::CRUISING);
+    EXPECT_TRUE(delta.getState() == EVTOL_STATE::GROUNDED_CHARGING);
+    EXPECT_TRUE(echo.getState() == EVTOL_STATE::GROUNDED_CHARGING);
+}
+
+
 
 int main(int argc, char** argv)
 {

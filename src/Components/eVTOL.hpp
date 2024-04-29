@@ -1,6 +1,7 @@
 #include "SimTypes.hpp"
 #include "SimObj.hpp"
 #include "ShMem.hpp"
+#include "Logger.hpp"
 
 struct eVTOL_consts
 {
@@ -12,30 +13,6 @@ struct eVTOL_consts
     float faultThresh;
     EVTOL_TYPE type;
     int id;
-};
-
-struct eVTOL_logging
-{
-    float batteryCapacity_kwh;
-    int numFaults;
-    int numFlights;
-    int numChargeSessions;
-    float passengerMiles;
-    float totalDistance;
-    TimeS flightTime;
-    TimeS chgTime;
-    EVTOL_STATE state;
-    void clear() {
-        batteryCapacity_kwh = 0.0;
-        numFaults = 0;
-        numFlights = 0;
-        numChargeSessions = 0;
-        passengerMiles = 0;
-        totalDistance = 0;
-        flightTime = 0;
-        chgTime = 0;
-        state = EVTOL_STATE::CRUISING;
-    }
 };
 
 //TODO as plane types evolve making eVTOL a base class would make sense
@@ -87,6 +64,10 @@ private:
     void updateBatteryCharging(TimeS dt);
     bool updateFault(TimeS dt);
     void updateChargeQueue();
+    void updateLogging();
+    TimeS timeCharging; //per charge session tracker
+    TimeS timeFlying; //per flight time tracker
+    float distanceFlying; //per flight distance tracker
     bool inQueue;
     eVTOL_consts characteristics;
     eVTOL_logging runningData;

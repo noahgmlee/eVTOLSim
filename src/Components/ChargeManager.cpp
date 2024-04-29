@@ -23,6 +23,7 @@ void ChargeManager::update(TimeS dt)
     while (!shMemPtr->chargingNetwork.chargeQueue.empty() &&
            !shMemPtr->chargingNetwork.availableChargers.empty())
     {
+
         int aircraftId = shMemPtr->chargingNetwork.chargeQueue.front();
         shMemPtr->chargingNetwork.chargeQueue.pop();
         int chargerId = shMemPtr->chargingNetwork.availableChargers.front();

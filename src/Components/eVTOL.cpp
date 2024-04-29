@@ -14,6 +14,9 @@ eVTOL::eVTOL(eVTOL_consts& eVTOL_data)
     runningData.clear();
     runningData.batteryCapacity_kwh = eVTOL_data.maxBatteryCapacity_kwh;
     inQueue = false;
+    timeCharging = 0;
+    distanceFlying = 0;
+    timeFlying = 0;
     shMemPtr = &sharedMemory;
 }
 
@@ -43,6 +46,7 @@ eVTOL::eVTOL(EVTOL_TYPE type, int id)
             break;
         default:
             std::cerr << "invalid EVTOL_TYPE passed to constructor" << std::endl;
+            break;
     }
     batch = SIM_BATCH::BATCH1;
     characteristics.type = type;
@@ -50,12 +54,16 @@ eVTOL::eVTOL(EVTOL_TYPE type, int id)
     runningData.clear();
     runningData.batteryCapacity_kwh = characteristics.maxBatteryCapacity_kwh;
     inQueue = false;
+    timeCharging = 0;
+    distanceFlying = 0;
+    timeFlying = 0;
     shMemPtr = &sharedMemory;
 }
 
 void eVTOL::update(TimeS dt)
 {
     updateStateMachine(dt);
+    updateLogging();
 }
 
 void eVTOL::updateStateMachine(TimeS dt)
@@ -79,10 +87,15 @@ void eVTOL::updateBattery(TimeS dt)
 {
     float distance = characteristics.cruiseSpeed_mph * SEC_TO_HRS(dt); //in miles
     runningData.batteryCapacity_kwh -= distance * characteristics.energyAtCruise_kwhpm;
-    runningData.totalDistance += distance;
-    runningData.flightTime += dt;
+    distanceFlying += distance;
+    timeFlying += dt;
     if (runningData.batteryCapacity_kwh < 0.0)
     {
+        runningData.totalDistance += distanceFlying;
+        runningData.flightTime += timeFlying;
+        runningData.numFlights += 1;
+        distanceFlying = 0;
+        timeFlying = 0;
         runningData.batteryCapacity_kwh = 0.0;
         runningData.state = EVTOL_STATE::GROUNDED_WAITING;
     }
@@ -92,10 +105,14 @@ void eVTOL::updateBatteryCharging(TimeS dt)
 {
     float ratekwhdt = SEC_TO_HRS(dt) * 1.0/characteristics.chargeTime_hs * characteristics.maxBatteryCapacity_kwh; //in miles
     runningData.batteryCapacity_kwh += ratekwhdt;
+    timeCharging += dt;
     if (runningData.batteryCapacity_kwh > characteristics.maxBatteryCapacity_kwh)
     {
         runningData.batteryCapacity_kwh = characteristics.maxBatteryCapacity_kwh;
         shMemPtr->messages[characteristics.id].charging = false;
+        runningData.chgTime += timeCharging;
+        runningData.numChargeSessions += 1;
+        timeCharging = 0;
         runningData.state = EVTOL_STATE::CRUISING;
     }
 }
@@ -117,7 +134,20 @@ void eVTOL::updateChargeQueue()
     }
 }
 
-//TODO fault projection to int range 1-10,000 assumes faultThreshdt always > 0.0000X
+void eVTOL::updateLogging()
+{
+    shMemPtr->messages[characteristics.id].numFaults = runningData.numFaults;
+    shMemPtr->messages[characteristics.id].numFlights = runningData.numFlights;
+    shMemPtr->messages[characteristics.id].numChargeSessions = runningData.numChargeSessions;
+    shMemPtr->messages[characteristics.id].passengerMiles = runningData.totalDistance * characteristics.passengerCount;
+    shMemPtr->messages[characteristics.id].distance = runningData.totalDistance;
+    shMemPtr->messages[characteristics.id].flightTime = runningData.flightTime;
+    shMemPtr->messages[characteristics.id].chgTime = runningData.chgTime;
+    shMemPtr->messages[characteristics.id].batteryCap = runningData.batteryCapacity_kwh;
+    shMemPtr->messages[characteristics.id].type = characteristics.type;
+}
+
+//Note: fault projection to int range 1-10,000 assumes faultThreshdt always > 0.0000X
 bool eVTOL::updateFault(TimeS dt)
 {
     float faultThreshdt = characteristics.faultThresh * ((float)dt / 3600.0);

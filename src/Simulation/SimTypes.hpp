@@ -3,7 +3,9 @@
 
 #define NUM_AIRCRAFTS 20
 #define NUM_CHARGERS 3
+
 #define SEC_TO_HRS(s) (1.0/60.0) * (1.0/60.0) * s
+#define HRS_TO_SEC(h) 60 * 60 * h
 
 #include <stdint.h>
 typedef uint64_t TimeS;

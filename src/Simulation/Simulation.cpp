@@ -5,13 +5,19 @@ Simulation::Simulation(TimeS dt, TimeS duration) : dt(dt), duration(duration)
     currTime = 0;
 }
 
-void Simulation::addCallable(std::function<void(TimeS)>& callable, SIM_BATCH batch)
+void Simulation::addObject(SimObj* component)
+{
+    //ensure polymorphism is not lost through a hard copy
+    addCallable(std::ref(*component), component->batch);
+}
+
+void Simulation::addCallable(std::function<void(TimeS)> callable, SIM_BATCH batch)
 {
     if (batch == SIM_BATCH::BATCH1)
     {
         batch1.push_back(callable);
     }
-    else
+    else if (batch == SIM_BATCH::BATCH2) //being explicit
     {
         batch2.push_back(callable);
     }
@@ -19,7 +25,7 @@ void Simulation::addCallable(std::function<void(TimeS)>& callable, SIM_BATCH bat
 
 void Simulation::start()
 {
-    while (currTime <= duration)
+    while (currTime < duration)
     {
         currTime += dt;
         update(dt);

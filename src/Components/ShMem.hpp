@@ -14,13 +14,31 @@ struct Message
     int numFlights;
     int numChargeSessions;
     float passengerMiles;
-    float Distance;
-    float FlightTime;
-    float ChgTime;
+    float distance;
+    float flightTime;
+    float chgTime;
+    float batteryCap;
     EVTOL_TYPE type; //vehicle identifier
 
 //chargeManager <-> eVTOL exchange
     bool charging;
+
+    Message()
+    {
+        clear();
+    }
+    void clear()
+    {
+        numFaults = 0;
+        numFlights = 0;
+        numChargeSessions = 0;
+        passengerMiles = 0.0;
+        distance = 0.0;
+        flightTime = 0.0;
+        chgTime = 0.0;
+        type = (EVTOL_TYPE)0;
+        charging = false;
+    }
 };
 
 struct charger
@@ -52,6 +70,29 @@ struct ShMem
 {
     Message messages[NUM_AIRCRAFTS];
     chargerNetwork chargingNetwork;
+    void init(){
+        while (!chargingNetwork.availableChargers.empty())
+        {
+            chargingNetwork.availableChargers.pop();
+        }
+        for (int i = 0; i < NUM_CHARGERS; i++)
+        {
+            chargingNetwork.availableChargers.push(i);
+        }
+        while (!chargingNetwork.chargeQueue.empty())
+        {
+            chargingNetwork.chargeQueue.pop();
+        }
+        for (auto& charger: chargingNetwork.chargers)
+        {
+            charger.inUse = false;
+            charger.planeid = INT32_MAX;
+        }
+        for (auto& message: messages)
+        {
+            message.clear();
+        }
+    }
 };
 
 extern ShMem sharedMemory;
