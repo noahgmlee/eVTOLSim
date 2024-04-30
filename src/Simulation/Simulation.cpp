@@ -1,7 +1,17 @@
 #include "Simulation.hpp"
+#include <iostream>
 
-Simulation::Simulation(TimeS dt, TimeS duration) : dt(dt), duration(duration)
+Simulation::Simulation(TimeS dt, TimeS duration) : duration(duration)
 {
+    if (dt == 0)
+    {
+        std::cerr << "must pass dt > 0 to the Simulation" << std::endl;
+        this->dt = 60; //default to 1 minute dt
+    }
+    else
+    {
+        this->dt = dt;
+    }
     currTime = 0;
 }
 
@@ -34,6 +44,7 @@ void Simulation::start()
 
 void Simulation::update(TimeS dt)
 {
+    //TODO std::thread wrappers to concurrently run the batches. requires shared memory protections
     for (auto callable: batch1){
         callable(dt);
     }

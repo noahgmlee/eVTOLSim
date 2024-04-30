@@ -10,6 +10,9 @@ public:
     void addCallable(std::function<void(TimeS)> callable, SIM_BATCH batch); //attach std::function
     void start();
     void update(TimeS dt);
+    TimeS getDt(){
+        return this->dt;
+    }
 
 private:
     std::vector<std::function<void(TimeS)>> batch1;

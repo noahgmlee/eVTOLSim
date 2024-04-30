@@ -105,7 +105,7 @@ void eVTOL::updateBattery(TimeS dt)
     distanceFlying += distance;
     timeFlying += dt;
     //only update logging data when a flight completes (battery is 0%)
-    if (runningData.batteryCapacity_kwh < 0.0)
+    if (runningData.batteryCapacity_kwh <= 0.0)
     {
         runningData.totalDistance += distanceFlying;
         runningData.passengerMiles += distanceFlying * (float)characteristics.passengerCount;
@@ -122,10 +122,10 @@ void eVTOL::updateBatteryCharging(TimeS dt)
 {
     //convert chargeTime to a delta power charged with respect to dt
     //rate = 1/timeToCharge * hours * battery_capacity_constant
-    float ratekwhdt = SEC_TO_HRS(dt) * 1.0/characteristics.chargeTime_hs * characteristics.maxBatteryCapacity_kwh; //in miles
+    float ratekwhdt = (float)SEC_TO_HRS(dt) * 1.0/characteristics.chargeTime_hs * characteristics.maxBatteryCapacity_kwh; //in miles
     runningData.batteryCapacity_kwh += ratekwhdt;
     timeCharging += dt;
-    if (runningData.batteryCapacity_kwh > characteristics.maxBatteryCapacity_kwh)
+    if (runningData.batteryCapacity_kwh >= (characteristics.maxBatteryCapacity_kwh * 0.99)) //1% tolerance
     {
         runningData.batteryCapacity_kwh = characteristics.maxBatteryCapacity_kwh;
         shMemPtr->messages[characteristics.id].charging = false;
@@ -166,14 +166,14 @@ void eVTOL::updateLogging() //write stats to sharedMemory for Logger
     shMemPtr->messages[characteristics.id].type = characteristics.type;
 }
 
-//Note: fault projection to int range 1-10,000 assumes faultThreshdt always > 0.0000X
+//Note: fault projection to int range 1-100,000 assumes faultThreshdt always > 0.00000X
 bool eVTOL::updateFault(TimeS dt)
 {
     float faultThreshdt = characteristics.faultThresh * ((float)dt / 3600.0);
-    if (faultThreshdt < 0.0001) {
+    if (faultThreshdt < 0.00001) {
         std::cerr << "Must simulate aircrafts with a dt to maintain a faultThreshdt > 0.0000X" << std::endl;
     }
-    float randNum = (float)(rand() % 10000 + 1); //pseudo-random number between 1 and 100 inclusive
-    randNum = randNum / 10000.0;
+    float randNum = (float)(rand() % 100000 + 1); //pseudo-random number between 1 and 10000 inclusive
+    randNum = randNum / 100000.0;
     return (randNum < faultThreshdt);
 }

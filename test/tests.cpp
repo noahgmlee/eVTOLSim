@@ -5,7 +5,11 @@
 #include "ChargeManager.hpp"
 #include "Simulation.hpp"
 
-//TODO add testhelpers header and implementation to abstract helpful test sequences
+//can rewrite these tests to be much cleaner in the following ways:
+//TODO refactor by adding testhelpers header and implementation to abstract helpful test sequences
+//TODO split this file out into src files for test types
+//TODO learn gtest parameterized tests to reduce code duplication
+//for example a parameterized test that takes EVTOL_TYPE can test each type with one code body
 
 // Sequence:
 // 1. instantiate all 5 types of eVTOLs
@@ -23,6 +27,28 @@ TEST(EVTOL, instantiateEVTOL)
     EXPECT_TRUE(charlie.getSpeed() == 160.0);
     EXPECT_TRUE(delta.getSpeed() == 90.0);
     EXPECT_TRUE(echo.getSpeed() == 30.0);
+}
+
+//fault test too large a dt - battery depletes on a single update
+TEST(EVTOL, dtTooBig)
+{
+    sharedMemory.init();
+    eVTOL alpha = eVTOL(EVTOL_TYPE::ALPHA, 0);
+    TimeS dt = 2 * 3600; //2 hour dt
+    alpha.update(dt);
+    EXPECT_FALSE(alpha.getBatteryCapacity() > 0.0);
+}
+
+//fault test too small a dt - random fault injections impossible
+TEST(EVTOL, dtTooSmall)
+{
+    sharedMemory.init();
+    eVTOL alpha = eVTOL(EVTOL_TYPE::ALPHA, 0);
+    alpha.setFaultProb(0.035);
+    TimeS dt = 1; //1 sec dt
+    alpha.update(dt);
+    EXPECT_FALSE(alpha.getFaults() > 0.0);
+    //should also log issue to stderr
 }
 
 // Sequence:
@@ -64,28 +90,31 @@ TEST(EVTOL, chargeUpdate)
     alpha.setBatteryCap(0.0);
     alpha.update(dt); //run 1 minute
     float batteryCap = 0.0;
-    batteryCap += SEC_TO_HRS(dt) * 1.0/(float)0.6 * (float)320.0;
+    batteryCap += (float)SEC_TO_HRS(dt) * 1.0/(float)0.6 * (float)320.0;
     EXPECT_TRUE(abs(alpha.getBatteryCapacity() - batteryCap) < 0.00001) << "wrong battery capacity: "
                                                                << alpha.getBatteryCapacity()
                                                                << "\nexpected: "
                                                                << batteryCap;
     for (int i = 0; i < 3; i ++){
         alpha.update(dt);
-        batteryCap += SEC_TO_HRS(dt) * 1.0/(float)0.6 * (float)320.0;
+        batteryCap += (float)SEC_TO_HRS(dt) * 1.0/(float)0.6 * (float)320.0;
         EXPECT_TRUE(abs(alpha.getBatteryCapacity() - batteryCap) < 0.00001) << "wrong battery capacity: "
                                                                 << alpha.getBatteryCapacity()
                                                                 << "\nexpected: "
                                                                 << batteryCap;
     }
-    while (batteryCap < 320.0){
+    while (batteryCap < (320.0 * 0.99)){
         alpha.update(dt);
-        batteryCap += SEC_TO_HRS(dt) * 1.0/(float)0.6 * (float)320.0;
+        batteryCap += (float)SEC_TO_HRS(dt) * 1.0/(float)0.6 * (float)320.0;
     }
     EXPECT_TRUE(abs(alpha.getBatteryCapacity() - 320.0) < 0.00001) << "wrong battery capacity: "
                                                      << alpha.getBatteryCapacity()
                                                      << "\nexpected: "
                                                      << 320.0;
 }
+
+//TODO at this point I pushed to get the SimEngine done and was more lenient with unit testing the rest of my eVTOL object
+//in practice I would ensure full code coverage of the eVTOL object
 
 void tickSim(std::vector<SimObj*>& components, TimeS dt)
 {
@@ -140,17 +169,24 @@ TEST(CHARGEMANAGER, chargeQueue)
     EXPECT_TRUE(echo.getState() == EVTOL_STATE::GROUNDED_CHARGING);
 }
 
+TEST(SIMULATION, SimEngineBaddt)
+{
+    Simulation faultSim(0, 3600);
+    EXPECT_FALSE(faultSim.getDt() == 0);
+    //stderr will also indicate improper use of Simulation class
+}
+
 // infra test of SimEngine
 // Sequence:
 // 1. attach 3 lambdas to the simulation: 1 and 3 as batch1 priority, 2 as batch2
 // 2. run 10 ticks and ensure lambda 1 and 3 are run with batch 1 and lambda 2 with batch2
-TEST(INTEGRATION, SimEngineSimple)
+TEST(SIMULATION, SimEngineSimple)
 {
     sharedMemory.init();
     Simulation simEngine = Simulation(60, 60 * 10); //run 10 ticks
     int i1 = 0, i2 = 0, i3 = 0;
     std::function<void(TimeS)> lambda1 = [&i1](TimeS dt) { std::cout << i1 << ": I am lambda 1, batch1!" << std::endl; i1++; };
-    std::function<void(TimeS)> lambda2 = [&i2](TimeS dt) { std::cout << i2 << ": I am lambda 2, batch2!" << std::endl; i2++; };
+    std::function<void(TimeS)> lambda2 = [&i2, &i3](TimeS dt) { std::cout << i2 << ": I am lambda 2, batch2!" << std::endl; EXPECT_TRUE(i3 > i2); i2++; };
     std::function<void(TimeS)> lambda3 = [&i3](TimeS dt) { std::cout << i3 << ": I am lambda 3, batch1!" << std::endl; i3++; };
     simEngine.addCallable(lambda1, SIM_BATCH::BATCH1);
     simEngine.addCallable(lambda2, SIM_BATCH::BATCH2);
@@ -214,7 +250,7 @@ TEST(INTEGRATION, SimEngineOutputCheck)
 {
     sharedMemory.init();
     TimeS dt = 60;
-    Simulation simEngine = Simulation(dt, dt * 100); //run 100 ticks
+    Simulation simEngine = Simulation(dt, dt * 120); //run 120 ticks
     eVTOL alpha = eVTOL(EVTOL_TYPE::ALPHA, 0);
     eVTOL bravo = eVTOL(EVTOL_TYPE::BRAVO, 1);
     eVTOL charlie = eVTOL(EVTOL_TYPE::CHARLIE, 2);
@@ -232,8 +268,8 @@ TEST(INTEGRATION, SimEngineOutputCheck)
     simEngine.addCallable([](TimeS dt) {
         for (int i = 0; i < NUM_CHARGERS; i++)
         {
-            if (sharedMemory.chargingNetwork.chargers[i].inUse)
-                std::cout << "CHARGER " << i << "-> PLANE_ID: " << sharedMemory.chargingNetwork.chargers[i].planeid << std::endl;
+            if (sharedMemory.chargingNetwork.chargers[i] != INT32_MAX)
+                std::cout << "CHARGER " << i << "-> PLANE_ID: " << sharedMemory.chargingNetwork.chargers[i] << std::endl;
             else
                 std::cout << "CHARGER " << i << "-> AVAILABLE" << std::endl;
         }
@@ -275,6 +311,8 @@ TEST(INTEGRATION, SimEngineOutputCheck)
     echo.setState(EVTOL_STATE::GROUNDED_WAITING);
 
     simEngine.start();
+
+    EXPECT_TRUE(((float)sharedMemory.messages[0].distance / (float)sharedMemory.messages[0].numFlights) == 200.0);
 }
 
 int main(int argc, char** argv)

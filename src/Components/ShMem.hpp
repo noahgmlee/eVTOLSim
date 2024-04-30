@@ -41,24 +41,16 @@ struct Message
     }
 };
 
-struct charger
-{
-    int  planeid;
-    bool inUse;
-    charger()
-    {
-        planeid = INT32_MAX;
-        inUse = false;
-    }
-};
-
 struct chargerNetwork
 {
-    //aircrafts are assigned to chargers based on wait time priority (max wait time = high priority)
+    //aircrafts are assigned to chargers based on wait time priority (max wait time = highest priority therefor FIFO)
     //a FIFO queue offers O(1) push and pop functions which are the only necessary interactions
+    //TODO as num chargers scales a design improvement would be a hash table of planeIds replaces chargers array
+    //availableChargers could be a "semaphore" esque resource counter that is decrement as planeIds get added
+    //constant time lookup in the hash table allows easy element removal when a plane completes charge
     std::queue<int> availableChargers;
     std::queue<int> chargeQueue;
-    charger chargers[NUM_CHARGERS];
+    int chargers[NUM_CHARGERS]; //holds planeId using this charger
     chargerNetwork()
     {
         for (int i = 0; i < NUM_CHARGERS; i++)
@@ -68,6 +60,9 @@ struct chargerNetwork
     }
 };
 
+//TODO refactor this to have a shared message queue system
+//similar to CAN protocol each component can share the queue
+//and receive a subset of message identifiers
 struct ShMem
 {
     Message messages[NUM_AIRCRAFTS];
@@ -87,8 +82,7 @@ struct ShMem
         }
         for (auto& charger: chargingNetwork.chargers)
         {
-            charger.inUse = false;
-            charger.planeid = INT32_MAX;
+            charger = INT32_MAX;
         }
         for (auto& message: messages)
         {

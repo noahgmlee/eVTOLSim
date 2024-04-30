@@ -11,12 +11,11 @@ void ChargeManager::update(TimeS dt)
     //add any chargers back to availableChargers queue when an aircraft is done charging
     for (int i = 0; i < NUM_CHARGERS; i++)
     {
-        if (shMemPtr->chargingNetwork.chargers[i].inUse)
+        if (shMemPtr->chargingNetwork.chargers[i] != INT32_MAX)
         {
-            if (!shMemPtr->messages[shMemPtr->chargingNetwork.chargers[i].planeid].charging)
+            if (!shMemPtr->messages[shMemPtr->chargingNetwork.chargers[i]].charging)
             {
-                shMemPtr->chargingNetwork.chargers[i].inUse = false;
-                shMemPtr->chargingNetwork.chargers[i].planeid = INT32_MAX;
+                shMemPtr->chargingNetwork.chargers[i] = INT32_MAX;
                 shMemPtr->chargingNetwork.availableChargers.push(i);
             }
         }
@@ -32,7 +31,6 @@ void ChargeManager::update(TimeS dt)
         int chargerId = shMemPtr->chargingNetwork.availableChargers.front();
         shMemPtr->chargingNetwork.availableChargers.pop();
         shMemPtr->messages[aircraftId].charging = true;
-        shMemPtr->chargingNetwork.chargers[chargerId].planeid = aircraftId;
-        shMemPtr->chargingNetwork.chargers[chargerId].inUse = true;
+        shMemPtr->chargingNetwork.chargers[chargerId] = aircraftId;
     }
 }
