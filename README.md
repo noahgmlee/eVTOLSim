@@ -24,7 +24,7 @@ The simulation engine holds a vector of components to update at each tick. Compo
 a Makefile is provided to build and run the eVTOL simulation <br />
 make - build the simulation binary <br />
 make test - build the test binary (unit tests, integration tests) <br />
-make run - run the simulation binary (must build it first) <br />
+make runsim - run the simulation binary (must build it first) <br />
 make runtests - run the test binary <br />
 I've added the launch.json file I use to run the sim or test binary with the integrated vscode debugger <br />
 
