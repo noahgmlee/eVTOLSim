@@ -8,12 +8,8 @@
 class SimObj
 {
 public:
-    virtual void update(TimeS dt){
-        (void)dt;
-    }
-    virtual void operator()(TimeS dt){
-        update(dt);
-    }
+    virtual void update(TimeS dt) = 0;
+    virtual void operator()(TimeS dt) = 0;
     SIM_BATCH batch;
 };
 
